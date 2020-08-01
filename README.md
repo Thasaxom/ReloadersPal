@@ -1,13 +1,15 @@
 # Reloader's Pal
 
-This is a project that is probably going to be designed to help reloaders.
-Some possible features:
+This is a project that is designed to help reloaders. It is written in Rust.
+
+Planned features:
 
 - Load Data Storage
-- Calibre Specifications
-- Possible Error Checking for Load Data
+- Calibre Catalogue
+- Cartridge Drawings
+- Powder Catalogue
+- Error Checking for Load Data
+- Load Simulation
 
-This project is most likely going to use:
 
-- C++
-- An offline sql database
+
