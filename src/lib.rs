@@ -1,5 +1,5 @@
-use rusqlite::{Connection, Result, OpenFlags, params};
-use std::process;
+use rusqlite::{Connection, params};
+mod sql;
 
 struct Load {
     load_id: i32,
@@ -76,21 +76,6 @@ struct Powder {
     powder_type: String,
 }
 
-pub fn open_connection() -> Connection {
-
-    let conn = Connection::open_with_flags("./loaddata.db", OpenFlags::SQLITE_OPEN_READ_WRITE);
-
-    match conn {
-        Result::Ok(opened_conn) => {
-            println!("database found");
-            opened_conn
-        }
-        Result::Err(_) => {
-            println!("database not found");
-            process::exit(1);
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -100,7 +85,7 @@ mod tests {
     #[test]
     fn new_casing() {
 
-        let conn = open_connection();
+        let conn = sql::open_connection();
         let test_casing = Casing::get_by_name(&conn, ".357 Magnum");
 
         assert_eq!(test_casing.casing_id, 1);
