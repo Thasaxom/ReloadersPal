@@ -41,10 +41,8 @@ struct Casing {
 
 impl Casing {
     
-    fn new(name: &str) -> Casing {
+    pub fn get_by_name(conn: &Connection, name: &str) -> Casing {
     
-        let conn = open_connection();
-
         let new_casing = conn.query_row("SELECT * FROM casing WHERE name = ?1", params![name], |row| {
             Ok(Casing {
                 casing_id: row.get("casing_id")?,
@@ -59,7 +57,6 @@ impl Casing {
         new_casing
 
     }
-
 }
 
 struct Projectile {
@@ -68,7 +65,7 @@ struct Projectile {
     manufacturer: String,
     diameter: f64,
     weight: f64,
-    projectil_type: String,
+    projectile_type: String,
     length: f64,
     sectional_density: f64,
 }
@@ -79,20 +76,20 @@ struct Powder {
     powder_type: String,
 }
 
-fn open_connection() -> Connection {
-    
-        let conn = Connection::open_with_flags("./loaddata.db", OpenFlags::SQLITE_OPEN_READ_WRITE);
+pub fn open_connection() -> Connection {
 
-        match conn {
-            Result::Ok(opened_conn) => {
-                println!("database found");
-                opened_conn
-            }
-            Result::Err(_) => {
-                println!("database not found");
-                process::exit(1);
-            }
+    let conn = Connection::open_with_flags("./loaddata.db", OpenFlags::SQLITE_OPEN_READ_WRITE);
+
+    match conn {
+        Result::Ok(opened_conn) => {
+            println!("database found");
+            opened_conn
         }
+        Result::Err(_) => {
+            println!("database not found");
+            process::exit(1);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -103,11 +100,15 @@ mod tests {
     #[test]
     fn new_casing() {
 
-        let test_casing = Casing::new(".357 Magnum");
+        let conn = open_connection();
+        let test_casing = Casing::get_by_name(&conn, ".357 Magnum");
 
         assert_eq!(test_casing.casing_id, 1);
         assert_eq!(test_casing.name, ".357 Magnum");
+        assert_eq!(test_casing.case_type, "Rimmed, straight");
+        assert_eq!(test_casing.primer_size, "SPM");
         assert_eq!(test_casing.max_psi, 35000.0);
+        assert_eq!(test_casing.max_cup, 45000.0);
 
     }
 
