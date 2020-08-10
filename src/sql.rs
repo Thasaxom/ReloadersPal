@@ -1,7 +1,7 @@
 use rusqlite::{Connection, Result, OpenFlags, params};
 use rusqlite::types::FromSql;
 use std::process;
-use reloaders_pal::Casing;
+use reloaders_pal::{Casing, Projectile};
 
 pub struct Database {
 
@@ -66,6 +66,24 @@ impl Database {
 
         new_casing
     }
+
+    pub fn get_projectile(&self, id: i32) -> Projectile {
+            
+        let new_projectile = self.conn.query_row("SELECT * FROM projectile WHERE projectile_id = ?1", params![id], |row| {
+            Ok(Projectile {
+                projectile_id: row.get("projectile_id")?,
+                casing_id: row.get("casing_id")?,
+                manufacturer: row.get("manufacturer")?,
+                diameter: row.get("diameter")?,
+                weight: row.get("weight")?,
+                projectile_type: row.get("type")?,
+                length: row.get("length")?,
+                sectional_density: row.get("sectional_density")?,
+            })
+        }).unwrap();
+
+        new_projectile
+    }
 }
 
 #[cfg(test)]
@@ -98,7 +116,7 @@ mod tests {
 
         let database = Database::new("./loaddata.db");
         let test_casing = database.get_casing(1);
-        //let test_projectile = database.get_projectile(1);
+        let test_projectile = database.get_projectile(1);
         //let test_powder = database.get_powder(1);
         //let test_ballistic_test = database.get_ballistic_test(1);
         //let test_load = database.get_load(1);
@@ -110,6 +128,14 @@ mod tests {
         assert!(test_casing.max_psi == 35000.0);
         assert!(test_casing.max_cup == 45000.0);
 
+        assert!(test_projectile.projectile_id == 1);
+        assert!(test_projectile.casing_id == 4);
+        assert!(test_projectile.manufacturer == "Berry's".to_string());
+        assert!(test_projectile.diameter == 0.356);
+        assert!(test_projectile.weight == 124.0);
+        assert!(test_projectile.projectile_type == "Round Nose Plated".to_string());
+        assert!(test_projectile.length == 0.6);
+        assert!(test_projectile.sectional_density == 0.139);
 
 
     }
