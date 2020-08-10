@@ -1,79 +1,56 @@
-use rusqlite::{Connection, params};
-mod sql;
-
-struct Load {
-    load_id: i32,
-    powder_id: i32,
-    casing_id: i32,
-    projectile_id: i32,
-    powder_weight: f64,
-    primer_make: String,
-    primer_lot: String,
-    headstamp: String,
-    brass_lot: String,
-    trim_to_length: f64,
-    cartridge_overall_length: f64,
-    crimp_diameter: f64,
+pub struct Load {
+    pub load_id: i32,
+    pub powder_id: i32,
+    pub casing_id: i32,
+    pub projectile_id: i32,
+    pub powder_weight: f64,
+    pub primer_make: String,
+    pub primer_lot: String,
+    pub headstamp: String,
+    pub brass_lot: String,
+    pub trim_to_length: f64,
+    pub cartridge_overall_length: f64,
+    pub crimp_diameter: f64,
 }
 
-struct BallisticTest {
-    test_id: i32,
-    load_id: i32,
-    air_pressure: f64,
-    altitude: f64,
-    air_temperature: f64,
-    wind_speed: f64,
-    wind_direction: String,
-    barrel_length: f64,
-    twist_rate: f64,
-    distance_to_target: f64,
-    date: String,
+pub struct BallisticTest {
+    pub test_id: i32,
+    pub load_id: i32,
+    pub air_pressure: f64,
+    pub altitude: f64,
+    pub air_temperature: f64,
+    pub wind_speed: f64,
+    pub wind_direction: String,
+    pub barrel_length: f64,
+    pub twist_rate: f64,
+    pub distance_to_target: f64,
+    pub date: String,
 }
 
-struct Casing {
-    casing_id: i32,
-    name: String,
-    primer_size: String,
-    case_type: String,
-    max_psi: f64,
-    max_cup: f64,
+pub struct Casing {
+    pub casing_id: i32,
+    pub name: String,
+    pub primer_size: String,
+    pub case_type: String,
+    pub max_psi: f64,
+    pub max_cup: f64,
 }
 
-impl Casing {
-    
-    pub fn get_by_name(conn: &Connection, name: &str) -> Casing {
-    
-        let new_casing = conn.query_row("SELECT * FROM casing WHERE name = ?1", params![name], |row| {
-            Ok(Casing {
-                casing_id: row.get("casing_id")?,
-                name: row.get("name")?,
-                primer_size: row.get("primer_size")?,
-                case_type: row.get("case_type")?,
-                max_psi: row.get("max_psi")?,
-                max_cup: row.get("max_cup")?,
-            })
-        }).unwrap();
-
-        new_casing
-
-    }
+pub struct Projectile {
+    pub projectile_id: i32,
+    pub casing_id: i32,
+    pub manufacturer: String,
+    pub diameter: f64,
+    pub weight: f64,
+    pub projectile_type: String,
+    pub length: f64,
+    pub sectional_density: f64,
 }
 
-struct Projectile {
-    projectile_id: i32,
-    casing_id: i32,
-    manufacturer: String,
-    diameter: f64,
-    weight: f64,
-    projectile_type: String,
-    length: f64,
-    sectional_density: f64,
-}
-
-struct Powder {
-    powder_id: i32,
-    manufacturer: String,
-    powder_type: String,
+pub struct Powder {
+    pub powder_id: i32,
+    pub manufacturer: String,
+    pub powder_type: String,
 }
 
 
@@ -81,20 +58,5 @@ struct Powder {
 mod tests {
 
     use super::*;
-
-    #[test]
-    fn new_casing() {
-
-        let conn = sql::open_connection();
-        let test_casing = Casing::get_by_name(&conn, ".357 Magnum");
-
-        assert_eq!(test_casing.casing_id, 1);
-        assert_eq!(test_casing.name, ".357 Magnum");
-        assert_eq!(test_casing.case_type, "Rimmed, straight");
-        assert_eq!(test_casing.primer_size, "SPM");
-        assert_eq!(test_casing.max_psi, 35000.0);
-        assert_eq!(test_casing.max_cup, 45000.0);
-
-    }
 
 }
