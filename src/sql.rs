@@ -3,7 +3,7 @@ use rusqlite::types::FromSql;
 use std::process;
 use reloaders_pal::Casing;
 
-struct Database {
+pub struct Database {
 
     conn: Connection,
 
