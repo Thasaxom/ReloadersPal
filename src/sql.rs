@@ -3,6 +3,9 @@ use rusqlite::types::FromSql;
 use std::process;
 use reloaders_pal::{Casing, Projectile, Powder, Load, BallisticTest};
 
+// wrapper to hold the database connection and do work with it
+// makes the function parameters simpler by removing the need to pass the 
+// connection to them for each function
 pub struct Database {
 
     conn: Connection,
@@ -33,6 +36,8 @@ impl Database {
         }
     }
 
+    // gets the id and a given column from the given table
+    // and returns it in a vector of tuples (id, value)
     pub fn get_id_pairs<T: FromSql>(&self, table: &str, column: &str) -> Vec<(i32, T)> {
         
         let mut query = String::from("SELECT * FROM ");
@@ -51,6 +56,7 @@ impl Database {
 
     }
         
+    // gets the given object by id and returns it
     pub fn get_casing(&self, id: i32) -> Casing {
         
         let new_casing = self.conn.query_row("SELECT * FROM casing WHERE casing_id = ?1", params![id], |row| {
