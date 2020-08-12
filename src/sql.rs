@@ -1,5 +1,5 @@
 use rusqlite::{Connection, Result, OpenFlags, params};
-use rusqlite::types::FromSql;
+use rusqlite::types::ToSql;
 use std::process;
 use reloaders_pal::{Casing, Projectile, Powder, Load, BallisticTest};
 
@@ -88,6 +88,15 @@ impl Database {
         &self.query
 
     }
+}
+
+pub enum SqlValue<T: ToSql> {
+
+    Text(T),
+    Num(T),
+    Wildcard,
+    None,
+
 }
 
 #[cfg(test)]
