@@ -3,13 +3,12 @@ use rusqlite::types::ToSql;
 use std::process;
 use reloaders_pal::{Casing, Projectile, Powder, Load, BallisticTest};
 
-// wrapper to hold the database connection and do work with it
-// makes the function parameters simpler by removing the need to pass the 
-// connection to them for each function
+// holds the database connection and current query
+// builder functions let you build an sql query from start to finish
 pub struct Database {
 
     conn: Connection,
-    query: String,
+    query: Option<Query>,
 
 }
 
@@ -18,7 +17,7 @@ impl Database {
     pub fn new(path: &str) -> Database {
         Database {
             conn: Database::open_connection(path),
-            query: String::new(),
+            query: Option::None,
         }
     }
 
@@ -38,28 +37,44 @@ impl Database {
         }
     }
 
-    pub fn select(&mut self, column: &str) -> &mut Self {
+    // Starts a new SELECT query
+    // Panics if another query is already being built or used
+    pub fn select(&mut self) -> &mut Self {
 
-        let format = format!("SELECT {}", column);
-        self.query.push_str(&format);
+        match self.query {
+
+            Some(_) => panic!("unused query cannot be overwritten"),
+            None => self.query = Option::Some(Query::new(SqlCommand::Select)),
+
+        };
 
         self
 
     }
 
+    // Adds new parameters to the query
+    // Panics if there is no base sql command chosen
     pub fn from(&mut self, table: &str) -> &mut Self {
 
-        let format = format!(" FROM {}", table);
-        self.query.push_str(&format);
+        match &mut self.query {
+
+            None => panic!("need sql command first"),
+            Some(query) => query.add_table(table),
+
+        }
 
         self
 
     }
+    
+    pub fn column(&mut self, column: &str) -> &mut Self {
 
-    pub fn from_where(&mut self, table: &str) -> &mut Self {
+        match &mut self.query {
 
-        let format = format!(" FROM {} WHERE", table);
-        self.query.push_str(&format);
+            None => panic!("need sql command first"),
+            Some(query) => query.add_column(column),
+
+        }
 
         self
 
@@ -67,35 +82,146 @@ impl Database {
 
     pub fn field(&mut self, field: &str) -> &mut Self {
 
-        let format = format!(" {}", field);
-        self.query.push_str(&format);
+        match &mut self.query {
+
+            None => panic!("need sql command first"),
+            Some(query) => query.add_field(field),
+
+        }
 
         self
 
     }
 
-    pub fn equals(&mut self, value: &str) -> &mut Self {
+    pub fn value(&mut self, value: SqlVal) -> &mut Self {
 
-        let format = format!(" = '{}'", value);
-        self.query.push_str(&format);
+        match &mut self.query {
+
+            None => panic!("need sql command first"),
+            Some(query) => query.add_value(value),
+
+        }
 
         self
 
     }
 
-    pub fn get_query(&self) -> &str {
+    pub fn op(&mut self, op: SqlOp) -> &mut Self {
+
+        match &mut self.query {
+
+            None => panic!("need sql command first"),
+            Some(query) => query.add_operator(op),
+
+        }
+
+        self
+
+    }
+
+    pub fn get_query(&mut self) -> String {
     
-        &self.query
+        match &mut self.query {
+
+            None => panic!("can't build empty query"),
+            Some(query) => query.build(),
+
+        }
 
     }
+    
 }
 
-pub enum SqlValue<T: ToSql> {
+// Holds the query, then builds and executes it
+struct Query {
 
-    Text(T),
-    Num(T),
-    Wildcard,
+   command: SqlCommand,
+   tables: Vec<String>,
+   columns: Vec<String>,
+   fields: Vec<String>,
+   values: Vec<SqlVal>,
+   operators: Vec<SqlOp>,
+
+}
+
+impl Query {
+
+    pub fn new(given_command: SqlCommand) -> Query {
+
+        Query {
+            command: given_command,
+            tables: Vec::new(),
+            columns: Vec::new(),
+            fields: Vec::new(),
+            values: Vec::new(),
+            operators: Vec::new(),
+        }
+
+    }
+
+    pub fn add_table(&mut self, table: &str) {
+
+        self.tables.push(table.to_string());
+
+    }
+
+    pub fn add_column(&mut self, column: &str) {
+
+        self.columns.push(column.to_string());
+
+    }
+
+    pub fn add_field(&mut self, field: &str) {
+
+        self.fields.push(field.to_string());
+
+    }
+
+    pub fn add_value(&mut self, value: SqlVal) {
+
+        self.values.push(value);
+
+    }
+
+    pub fn add_operator(&mut self, operator: SqlOp) {
+
+        self.operators.push(operator);
+
+    }
+
+    pub fn build(&mut self) -> String {
+
+        "placeholder".to_string()
+
+    }
+
+}
+
+// Ensures values are of the correct type 
+pub enum SqlVal {
+
+    Text(String),
+    Num(f64),
     None,
+
+}
+
+pub enum SqlOp {
+
+    And,
+    Or,
+    Not,
+    Equals,
+
+}
+
+// Only used by the Database struct for the main command
+enum SqlCommand {
+
+    Select,
+    Insert,
+    Update,
+    Delete,
 
 }
 
@@ -103,15 +229,22 @@ pub enum SqlValue<T: ToSql> {
 mod tests {
 
     use super::*;
-
+    
     #[test]
     fn test_builders() {
 
         let mut database = Database::new("./loaddata.db");
 
-        database.select("*").from_where("casing").field("name").equals(".357 Magnum");
+        database
+            .select()
+            .column("*")
+            .from("casing")
+            .field("name")
+            .op(SqlOp::Equals)
+            .value(SqlVal::Text(".357 Magnum".to_string()));
         
         assert_eq!(database.get_query(), "SELECT * FROM casing WHERE name = '.357 Magnum'");
 
     }
+    
 }
