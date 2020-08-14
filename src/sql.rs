@@ -139,6 +139,11 @@ impl Database {
             Some(query) => query.build(),
 
         }
+    }
+
+    pub fn reset_query(&mut self) {
+
+        self.query = Option::None;
 
     }
     
@@ -331,9 +336,22 @@ enum SqlCommand {
 mod tests {
 
     use super::*;
+
+    #[test]
+    fn test_simple_select() {
+
+        let mut database = Database::new("./loaddata.db");
+
+        database
+            .select()
+            .column("*")
+            .from("projectile");
+
+        assert_eq!(database.get_query(), "SELECT * FROM projectile");
+    }
     
     #[test]
-    fn test_builders() {
+    fn test_complex_select() {
 
         let mut database = Database::new("./loaddata.db");
 
@@ -347,6 +365,15 @@ mod tests {
             .condition("casing_id", SqlOp::Equals, SqlVal::Num(1 as f64));
         
         assert_eq!(database.get_query(), "SELECT name,primer_size FROM casing WHERE name='.357 Magnum' OR casing_id=1");
+    }
+
+    #[test]
+    #[should_panic]
+    fn builder_panic() {
+
+        let mut database = Database::new("./loaddata.db");
+
+        database.column("panic time");
 
     }
     
