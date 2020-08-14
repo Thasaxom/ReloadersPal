@@ -52,9 +52,22 @@ impl Database {
 
     }
 
+    pub fn insert(&mut self) -> &mut Self {
+
+        match self.query {
+
+            Some(_) => panic!("unused query cannot be overwritten"),
+            None => self.query = Option::Some(Query::new(SqlCommand::Insert)),
+
+        };
+
+        self
+
+    }
+
     // Adds new parameters to the query
     // Panics if there is no base sql command chosen
-    pub fn from(&mut self, table: &str) -> &mut Self {
+    pub fn table(&mut self, table: &str) -> &mut Self {
 
         match &mut self.query {
 
@@ -106,6 +119,31 @@ impl Database {
 
     }
 
+    pub fn start(&mut self) -> &mut Self {
+
+        match &mut self.query {
+
+            None => panic!("need sql command first"),
+            Some(query) => query.start_values(),
+
+        }
+
+        self
+
+    }
+
+    pub fn end(&mut self) -> &mut Self {
+
+        match &mut self.query {
+
+            None => panic!("need sql command first"),
+            Some(query) => query.end_values(),
+
+        }
+
+        self
+
+    }
     pub fn condition(&mut self, field: &str, op: SqlOp, val: SqlVal) -> &mut Self {
 
         match &mut self.query {
@@ -156,7 +194,8 @@ struct Query {
    tables: Vec<String>,
    columns: Vec<String>,
    fields: Vec<String>,
-   values: Vec<SqlVal>,
+   values: Vec<Vec<SqlVal>>,
+   values_count: usize,
    conditions: Vec<(String, SqlOp, SqlVal)>,
    operators: Vec<SqlOp>,
 
@@ -172,6 +211,7 @@ impl Query {
             columns: Vec::new(),
             fields: Vec::new(),
             values: Vec::new(),
+            values_count: 0,
             conditions: Vec::new(),
             operators: Vec::new(),
         }
@@ -198,7 +238,7 @@ impl Query {
 
     pub fn add_value(&mut self, value: SqlVal) {
 
-        self.values.push(value);
+        self.values[self.values_count].push(value);
 
     }
 
@@ -214,11 +254,24 @@ impl Query {
 
     }
 
+    pub fn start_values(&mut self) {
+
+        self.values.push(Vec::new());
+
+    }
+
+    pub fn end_values(&mut self) {
+
+        self.values_count += 1;
+
+    }
+
     // checks the command type and call the appropriate function
     pub fn build(&mut self) -> String {
         match self.command {
 
             SqlCommand::Select => self.build_select(),
+            SqlCommand::Insert => self.build_insert(),
             _ => panic!("not implemented"),
 
         }
@@ -245,6 +298,42 @@ impl Query {
         }
         else if len == 1 { list.push_str(list_items[0].as_str()); }
         else { panic!("no list_items given"); }
+
+        list
+
+    }
+
+    fn comma_seperated_values(list_items: &Vec<SqlVal>) -> String {
+
+        let len = list_items.len();
+        let mut list = String::new();
+        list.push_str("(");
+
+        if len > 1 {
+
+            match &list_items[0] {
+                SqlVal::Text(value) => list.push_str(format!("'{}'", value).as_str()),
+                SqlVal::Num(value) => list.push_str(value.to_string().as_str()),
+            }
+
+            for item in list_items[1..].iter() {
+
+                list.push_str(",");
+                match item {
+                    SqlVal::Text(value) => list.push_str(format!("'{}'", value).as_str()),
+                    SqlVal::Num(value) => list.push_str(value.to_string().as_str()),
+                }
+
+            }
+        }
+        else if len == 1 { 
+            match &list_items[0] {
+                SqlVal::Text(value) => list.push_str(format!("'{}'", value).as_str()),
+                SqlVal::Num(value) => list.push_str(value.to_string().as_str()),
+            }
+        }
+        else { panic!("no list_items given"); }
+        list.push_str(")");
 
         list
 
@@ -303,6 +392,37 @@ impl Query {
         }
         built_query
     }
+
+    fn build_insert(&mut self) -> String {
+
+        let mut built_query = String::new();
+
+        if self.tables.len() != 1 {
+            panic!("too many or too few tables for insert statement");
+        }
+
+        built_query.push_str("INSERT INTO ");
+        built_query.push_str(self.tables[0].as_str());
+
+        if self.fields.len() > 0 {
+            built_query.push_str(format!(" ({})", Query::comma_seperated_list(&self.fields)).as_str());
+        }
+
+        built_query.push_str(" VALUES ");
+
+        let mut value_sets: Vec<String> = Vec::new();
+
+        for set in self.values.iter() {
+
+            value_sets.push(Query::comma_seperated_values(&set));
+
+        }
+
+        built_query.push_str(Query::comma_seperated_list(&value_sets).as_str());
+
+        built_query
+
+    }
 }
 
 // Ensures values are of the correct type 
@@ -345,7 +465,7 @@ mod tests {
         database
             .select()
             .column("*")
-            .from("projectile");
+            .table("projectile");
 
         assert_eq!(database.get_query(), "SELECT * FROM projectile");
     }
@@ -359,12 +479,33 @@ mod tests {
             .select()
             .column("name")
             .column("primer_size")
-            .from("casing")
+            .table("casing")
             .condition("name", SqlOp::Equals, SqlVal::Text(".357 Magnum".to_string()))
             .op(SqlOp::Or)
             .condition("casing_id", SqlOp::Equals, SqlVal::Num(1 as f64));
         
         assert_eq!(database.get_query(), "SELECT name,primer_size FROM casing WHERE name='.357 Magnum' OR casing_id=1");
+    }
+
+    #[test]
+    fn test_insert() {
+
+        let mut database = Database::new("./loaddata.db");
+
+        database
+            .insert()
+            .table("casing")
+            .field("casing_id")
+            .field("name")
+            .field("type")
+            .start()
+            .value(SqlVal::Num(6 as f64))
+            .value(SqlVal::Text(".30-06".to_string()))
+            .value(SqlVal::Text("Rimless, Straight bottleneck".to_string()))
+            .end();
+
+        assert_eq!(database.get_query(), "INSERT INTO casing (casing_id,name,type) VALUES (6,'.30-06','Rimless, Straight bottleneck')");
+
     }
 
     #[test]
