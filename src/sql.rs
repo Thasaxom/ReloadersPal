@@ -209,59 +209,17 @@ impl Query {
 
     }
 
+    // checks the command type and call the appropriate function
     pub fn build(&mut self) -> String {
-
-        let mut built_query = String::new();
-
         match self.command {
 
-            SqlCommand::Select => {
-
-                built_query.push_str("SELECT ");
-                built_query.push_str(Query::comma_seperated_list(&self.columns).as_str());
-
-                built_query.push_str(" FROM ");
-                built_query.push_str(Query::comma_seperated_list(&self.tables).as_str());
-
-                if self.conditions.len() == 0 {
-                    return built_query;
-                }
-
-                built_query.push_str(" WHERE ");
-
-                let mut operators_iter = self.operators.iter();
-
-                for (field, op, value) in self.conditions.iter() {
-
-                    built_query.push_str(field.as_str());
-
-                    match op {
-                        SqlOp::Equals => built_query.push_str("="),
-                        _ => panic!("invalid or unimplemented operator for select condition"),
-                    }
-
-                    match value {
-                        SqlVal::Text(value) => built_query.push_str(format!("'{}'", value).as_str()),
-                        SqlVal::Num(value) => built_query.push_str(value.to_string().as_str()),
-                    }
-
-                    if let Some(logical_op) = operators_iter.next() {
-
-                        match logical_op {
-                            SqlOp::And => built_query.push_str(" AND "),
-                            SqlOp::Or => built_query.push_str(" OR "),
-                            _ => panic!("invalid or unimplemented operator for select condition"),
-                        }
-                    }
-                }
-            }
+            SqlCommand::Select => self.build_select(),
             _ => panic!("not implemented"),
 
         }
-        built_query
     }
 
-    // takes a refernce to a vector of strings and returns the contents as 
+    // takes a reference to a vector of strings and returns the contents as 
     // a comma seperated list. if the vector has 1 elements, just returns that element
     // panics if given an empty list
     fn comma_seperated_list(list_items: &Vec<String>) -> String {
@@ -285,6 +243,60 @@ impl Query {
 
         list
 
+    }
+
+    // builder for select queries
+    fn build_select(&mut self) -> String {
+
+        let mut built_query = String::new();
+
+        // push the columns as a comma seperated list
+        built_query.push_str("SELECT ");
+        built_query.push_str(Query::comma_seperated_list(&self.columns).as_str());
+
+        // push the tables as a comma seperated list
+        built_query.push_str(" FROM ");
+        built_query.push_str(Query::comma_seperated_list(&self.tables).as_str());
+
+        // if there are no conditions, return the query as it is now
+        if self.conditions.len() == 0 {
+            return built_query;
+        }
+
+        built_query.push_str(" WHERE ");
+
+        // get an iterator over the logical operators between conditions
+        let mut operators_iter = self.operators.iter();
+
+        for (field, op, value) in self.conditions.iter() {
+
+            //push the field as is
+            built_query.push_str(field.as_str());
+
+            // match the correct op and push the correct symbols
+            match op {
+                SqlOp::Equals => built_query.push_str("="),
+                _ => panic!("invalid or unimplemented operator for select condition"),
+            }
+
+            // push a string with quotes around it and push a number as is
+            match value {
+                SqlVal::Text(value) => built_query.push_str(format!("'{}'", value).as_str()),
+                SqlVal::Num(value) => built_query.push_str(value.to_string().as_str()),
+            }
+
+            // if there is another logical operator, push the correct symbol to the query
+            // otherwise do nothing
+            if let Some(logical_op) = operators_iter.next() {
+
+                match logical_op {
+                    SqlOp::And => built_query.push_str(" AND "),
+                    SqlOp::Or => built_query.push_str(" OR "),
+                    _ => panic!("invalid or unimplemented operator for select condition"),
+                }
+            }
+        }
+        built_query
     }
 }
 
