@@ -106,6 +106,18 @@ impl Database {
 
     }
 
+    pub fn condition(&mut self, field: &str, op: SqlOp, val: SqlVal) -> &mut Self {
+
+        match &mut self.query {
+            None => panic!("need sql command first"),
+            Some(query) => query.add_condition(field, op, val),
+
+        }
+
+        self
+
+    }
+
     pub fn op(&mut self, op: SqlOp) -> &mut Self {
 
         match &mut self.query {
@@ -140,6 +152,7 @@ struct Query {
    columns: Vec<String>,
    fields: Vec<String>,
    values: Vec<SqlVal>,
+   conditions: Vec<(String, SqlOp, SqlVal)>,
    operators: Vec<SqlOp>,
 
 }
@@ -154,6 +167,7 @@ impl Query {
             columns: Vec::new(),
             fields: Vec::new(),
             values: Vec::new(),
+            conditions: Vec::new(),
             operators: Vec::new(),
         }
 
@@ -183,6 +197,12 @@ impl Query {
 
     }
 
+    pub fn add_condition(&mut self, field: &str, op: SqlOp, value: SqlVal) {
+
+        self.conditions.push((field.to_string(), op, value));
+
+    }
+
     pub fn add_operator(&mut self, operator: SqlOp) {
 
         self.operators.push(operator);
@@ -191,10 +211,81 @@ impl Query {
 
     pub fn build(&mut self) -> String {
 
-        "placeholder".to_string()
+        let mut built_query = String::new();
 
+        match self.command {
+
+            SqlCommand::Select => {
+
+                built_query.push_str("SELECT ");
+                built_query.push_str(Query::comma_seperated_list(&self.columns).as_str());
+
+                built_query.push_str(" FROM ");
+                built_query.push_str(Query::comma_seperated_list(&self.tables).as_str());
+
+                if self.conditions.len() == 0 {
+                    return built_query;
+                }
+
+                built_query.push_str(" WHERE ");
+
+                let mut operators_iter = self.operators.iter();
+
+                for (field, op, value) in self.conditions.iter() {
+
+                    built_query.push_str(field.as_str());
+
+                    match op {
+                        SqlOp::Equals => built_query.push_str("="),
+                        _ => panic!("invalid or unimplemented operator for select condition"),
+                    }
+
+                    match value {
+                        SqlVal::Text(value) => built_query.push_str(format!("'{}'", value).as_str()),
+                        SqlVal::Num(value) => built_query.push_str(value.to_string().as_str()),
+                    }
+
+                    if let Some(logical_op) = operators_iter.next() {
+
+                        match logical_op {
+                            SqlOp::And => built_query.push_str(" AND "),
+                            SqlOp::Or => built_query.push_str(" OR "),
+                            _ => panic!("invalid or unimplemented operator for select condition"),
+                        }
+                    }
+                }
+            }
+            _ => panic!("not implemented"),
+
+        }
+        built_query
     }
 
+    // takes a refernce to a vector of strings and returns the contents as 
+    // a comma seperated list. if the vector has 1 elements, just returns that element
+    // panics if given an empty list
+    fn comma_seperated_list(list_items: &Vec<String>) -> String {
+
+        let len = list_items.len();
+        let mut list = String::new();
+
+        if len > 1 {
+
+            list.push_str(list_items[0].as_str());
+
+            for item in list_items[1..].iter() {
+
+                list.push_str(",");
+                list.push_str(item.as_str());
+
+            }
+        }
+        else if len == 1 { list.push_str(list_items[0].as_str()); }
+        else { panic!("no list_items given"); }
+
+        list
+
+    }
 }
 
 // Ensures values are of the correct type 
@@ -202,7 +293,6 @@ pub enum SqlVal {
 
     Text(String),
     Num(f64),
-    None,
 
 }
 
@@ -237,13 +327,14 @@ mod tests {
 
         database
             .select()
-            .column("*")
+            .column("name")
+            .column("primer_size")
             .from("casing")
-            .field("name")
-            .op(SqlOp::Equals)
-            .value(SqlVal::Text(".357 Magnum".to_string()));
+            .condition("name", SqlOp::Equals, SqlVal::Text(".357 Magnum".to_string()))
+            .op(SqlOp::Or)
+            .condition("casing_id", SqlOp::Equals, SqlVal::Num(1 as f64));
         
-        assert_eq!(database.get_query(), "SELECT * FROM casing WHERE name = '.357 Magnum'");
+        assert_eq!(database.get_query(), "SELECT name,primer_size FROM casing WHERE name='.357 Magnum' OR casing_id=1");
 
     }
     
