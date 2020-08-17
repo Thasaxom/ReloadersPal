@@ -3,6 +3,34 @@ use rusqlite::types::ToSql;
 use std::process;
 use reloaders_pal::{Casing, Projectile, Powder, Load, BallisticTest};
 
+#[macro_export]
+macro_rules! fields {
+    
+    ($database:ident, $( $val:expr ),*) => {
+        
+        $database
+        $(
+            .field($val)
+        )*
+    }
+
+}
+
+#[macro_export]
+macro_rules! values {
+    
+    ($database:ident, $( $val:expr ),*) => {
+        
+        $database
+        .start()
+        $(
+            .value($val)
+        )*
+        .end()
+    }
+
+}
+
 // holds the database connection and current query
 // builder functions let you build an sql query from start to finish
 pub struct Database {
@@ -313,7 +341,8 @@ impl Query {
 
             match &list_items[0] {
                 SqlVal::Text(value) => list.push_str(format!("'{}'", value).as_str()),
-                SqlVal::Num(value) => list.push_str(value.to_string().as_str()),
+                SqlVal::Int(value) => list.push_str(value.to_string().as_str()),
+                SqlVal::Real(value) => list.push_str(value.to_string().as_str()),
             }
 
             for item in list_items[1..].iter() {
@@ -321,7 +350,8 @@ impl Query {
                 list.push_str(",");
                 match item {
                     SqlVal::Text(value) => list.push_str(format!("'{}'", value).as_str()),
-                    SqlVal::Num(value) => list.push_str(value.to_string().as_str()),
+                    SqlVal::Int(value) => list.push_str(value.to_string().as_str()),
+                    SqlVal::Real(value) => list.push_str(value.to_string().as_str()),
                 }
 
             }
@@ -329,7 +359,8 @@ impl Query {
         else if len == 1 { 
             match &list_items[0] {
                 SqlVal::Text(value) => list.push_str(format!("'{}'", value).as_str()),
-                SqlVal::Num(value) => list.push_str(value.to_string().as_str()),
+                SqlVal::Int(value) => list.push_str(value.to_string().as_str()),
+                SqlVal::Real(value) => list.push_str(value.to_string().as_str()),
             }
         }
         else { panic!("no list_items given"); }
@@ -376,7 +407,8 @@ impl Query {
             // push a string with quotes around it and push a number as is
             match value {
                 SqlVal::Text(value) => built_query.push_str(format!("'{}'", value).as_str()),
-                SqlVal::Num(value) => built_query.push_str(value.to_string().as_str()),
+                SqlVal::Int(value) => built_query.push_str(value.to_string().as_str()),
+                SqlVal::Real(value) => built_query.push_str(value.to_string().as_str()),
             }
 
             // if there is another logical operator, push the correct symbol to the query
@@ -429,7 +461,8 @@ impl Query {
 pub enum SqlVal {
 
     Text(String),
-    Num(f64),
+    Int(i32),
+    Real(f64),
 
 }
 
@@ -482,7 +515,7 @@ mod tests {
             .table("casing")
             .condition("name", SqlOp::Equals, SqlVal::Text(".357 Magnum".to_string()))
             .op(SqlOp::Or)
-            .condition("casing_id", SqlOp::Equals, SqlVal::Num(1 as f64));
+            .condition("casing_id", SqlOp::Equals, SqlVal::Int(1));
         
         assert_eq!(database.get_query(), "SELECT name,primer_size FROM casing WHERE name='.357 Magnum' OR casing_id=1");
     }
@@ -494,17 +527,21 @@ mod tests {
 
         database
             .insert()
-            .table("casing")
-            .field("casing_id")
-            .field("name")
-            .field("type")
-            .start()
-            .value(SqlVal::Num(6 as f64))
-            .value(SqlVal::Text(".30-06".to_string()))
-            .value(SqlVal::Text("Rimless, Straight bottleneck".to_string()))
-            .end();
+            .table("casing");
 
-        assert_eq!(database.get_query(), "INSERT INTO casing (casing_id,name,type) VALUES (6,'.30-06','Rimless, Straight bottleneck')");
+        fields!(database,
+            "casing_id",
+            "name",
+            "type",
+            "max_psi");
+
+        values!(database, 
+                SqlVal::Int(6), 
+                SqlVal::Text(".30-06".to_string()), 
+                SqlVal::Text("Rimless, Straight bottleneck".to_string()),
+                SqlVal::Real(25000.0));
+
+        assert_eq!(database.get_query(), "INSERT INTO casing (casing_id,name,type,max_psi) VALUES (6,'.30-06','Rimless, Straight bottleneck',25000)");
 
     }
 
