@@ -415,7 +415,7 @@ impl Query {
                 SqlOp::GTE => condition_string.push_str(">="),
                 SqlOp::LT => condition_string.push_str("<"),
                 SqlOp::LTE => condition_string.push_str("<="),
-                _ => panic!("invalid or unimplemented operator for select condition"),
+                _ => panic!("invalid or unimplemented operator for condition"),
             }
 
             // push a string with quotes around it and push a number as is
@@ -432,7 +432,7 @@ impl Query {
                 match logical_op {
                     SqlOp::And => condition_string.push_str(" AND "),
                     SqlOp::Or => condition_string.push_str(" OR "),
-                    _ => panic!("invalid or unimplemented operator for select condition"),
+                    _ => panic!("invalid or unimplemented logical operator for condition"),
                 }
             }
         }
