@@ -497,13 +497,71 @@ impl Query {
 
     fn build_update(&mut self) -> String {
 
-        "".to_string()
+        let mut built_query = String::new();
+
+        if self.tables.len() != 1 {
+            panic!("too many or too few tables for insert statement");
+        }
+
+        built_query.push_str("UPDATE ");
+        built_query.push_str(self.tables[0].as_str());
+
+        built_query.push_str(" SET ");
+
+        if self.values_count != 1 {
+            panic!("to many value sets");
+        }
+
+        if self.values[0].len() != self.fields.len() {
+            panic!("mismatched number of fields and values");
+        }
+
+        let mut set_vals = Vec::new();
+
+        for (field, value) in self.fields.iter().zip(self.values[0].iter()) {
+
+            let mut temp = String::new();
+            temp.push_str(field.as_str());
+            temp.push_str("=");
+
+            match &value {
+                SqlVal::Text(value) => temp.push_str(format!("'{}'", value).as_str()),
+                SqlVal::Int(value) => temp.push_str(value.to_string().as_str()),
+                SqlVal::Real(value) => temp.push_str(value.to_string().as_str()),
+            }
+
+            set_vals.push(temp.clone());
+
+        }
+
+        built_query.push_str(Query::comma_seperated_list(&set_vals).as_str());
+
+        if self.conditions.len() > 0 {
+            built_query.push_str(" WHERE ");
+            built_query.push_str(self.get_conditions_string().as_str());
+        }
+
+        built_query
 
     }
 
     fn build_delete(&mut self) -> String {
 
-        "".to_string()
+        let mut built_query = String::new();
+
+        if self.tables.len() != 1 {
+            panic!("too many or too few tables for insert statement");
+        }
+
+        built_query.push_str("DELETE FROM ");
+        built_query.push_str(self.tables[0].as_str());
+
+        if self.conditions.len() > 0 {
+            built_query.push_str(" WHERE ");
+            built_query.push_str(self.get_conditions_string().as_str());
+        }
+
+        built_query
 
     }
 }
@@ -615,7 +673,7 @@ mod tests {
 
         values!(database, SqlVal::Text(".30-06".to_string()), SqlVal::Text("Rimless, straight bottleneck".to_string()));
 
-        assert_eq!(database.get_query(), "UPDATE casing SET name='.30-06',type='Rimless, straight bottleneck' WHERE casing_id=3");
+        assert_eq!(database.get_query(), "UPDATE casing SET name='.30-06',type='Rimless, straight bottleneck' WHERE casing_id<>3");
     }
 
     #[test]
