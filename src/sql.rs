@@ -93,6 +93,32 @@ impl Database {
 
     }
 
+    pub fn update(&mut self) -> &mut Self {
+
+        match self.query {
+
+            Some(_) => panic!("unused query cannot be overwritten"),
+            None => self.query = Option::Some(Query::new(SqlCommand::Update)),
+
+        };
+
+        self
+
+    }
+
+    pub fn delete(&mut self) -> &mut Self {
+
+        match self.query {
+
+            Some(_) => panic!("unused query cannot be overwritten"),
+            None => self.query = Option::Some(Query::new(SqlCommand::Delete)),
+
+        };
+
+        self
+
+    }
+
     // Adds new parameters to the query
     // Panics if there is no base sql command chosen
     pub fn table(&mut self, table: &str) -> &mut Self {
@@ -300,7 +326,8 @@ impl Query {
 
             SqlCommand::Select => self.build_select(),
             SqlCommand::Insert => self.build_insert(),
-            _ => panic!("not implemented"),
+            SqlCommand::Update => self.build_update(),
+            SqlCommand::Delete => self.build_delete(),
 
         }
     }
@@ -370,6 +397,49 @@ impl Query {
 
     }
 
+    fn get_conditions_string(&mut self) -> String {
+
+        let mut operators_iter = self.operators.iter();
+        let mut condition_string = String::new();
+
+        for (field, op, value) in self.conditions.iter() {
+
+            //push the field as is
+            condition_string.push_str(field.as_str());
+
+            // match the correct op and push the correct symbols
+            match op {
+                SqlOp::Equals => condition_string.push_str("="),
+                SqlOp::NotEquals => condition_string.push_str("<>"),
+                SqlOp::GT => condition_string.push_str(">"),
+                SqlOp::GTE => condition_string.push_str(">="),
+                SqlOp::LT => condition_string.push_str("<"),
+                SqlOp::LTE => condition_string.push_str("<="),
+                _ => panic!("invalid or unimplemented operator for select condition"),
+            }
+
+            // push a string with quotes around it and push a number as is
+            match value {
+                SqlVal::Text(value) => condition_string.push_str(format!("'{}'", value).as_str()),
+                SqlVal::Int(value) => condition_string.push_str(value.to_string().as_str()),
+                SqlVal::Real(value) => condition_string.push_str(value.to_string().as_str()),
+            }
+
+            // if there is another logical operator, push the correct symbol to the query
+            // otherwise do nothing
+            if let Some(logical_op) = operators_iter.next() {
+
+                match logical_op {
+                    SqlOp::And => condition_string.push_str(" AND "),
+                    SqlOp::Or => condition_string.push_str(" OR "),
+                    _ => panic!("invalid or unimplemented operator for select condition"),
+                }
+            }
+        }
+        condition_string
+
+    }
+
     // builder for select queries
     fn build_select(&mut self) -> String {
 
@@ -389,44 +459,8 @@ impl Query {
         }
 
         built_query.push_str(" WHERE ");
+        built_query.push_str(self.get_conditions_string().as_str());
 
-        // get an iterator over the logical operators between conditions
-        let mut operators_iter = self.operators.iter();
-
-        for (field, op, value) in self.conditions.iter() {
-
-            //push the field as is
-            built_query.push_str(field.as_str());
-
-            // match the correct op and push the correct symbols
-            match op {
-                SqlOp::Equals => built_query.push_str("="),
-                SqlOp::NotEquals => built_query.push_str("<>"),
-                SqlOp::GT => built_query.push_str(">"),
-                SqlOp::GTE => built_query.push_str(">="),
-                SqlOp::LT => built_query.push_str("<"),
-                SqlOp::LTE => built_query.push_str("<="),
-                _ => panic!("invalid or unimplemented operator for select condition"),
-            }
-
-            // push a string with quotes around it and push a number as is
-            match value {
-                SqlVal::Text(value) => built_query.push_str(format!("'{}'", value).as_str()),
-                SqlVal::Int(value) => built_query.push_str(value.to_string().as_str()),
-                SqlVal::Real(value) => built_query.push_str(value.to_string().as_str()),
-            }
-
-            // if there is another logical operator, push the correct symbol to the query
-            // otherwise do nothing
-            if let Some(logical_op) = operators_iter.next() {
-
-                match logical_op {
-                    SqlOp::And => built_query.push_str(" AND "),
-                    SqlOp::Or => built_query.push_str(" OR "),
-                    _ => panic!("invalid or unimplemented operator for select condition"),
-                }
-            }
-        }
         built_query
     }
 
@@ -458,6 +492,18 @@ impl Query {
         built_query.push_str(Query::comma_seperated_list(&value_sets).as_str());
 
         built_query
+
+    }
+
+    fn build_update(&mut self) -> String {
+
+        "".to_string()
+
+    }
+
+    fn build_delete(&mut self) -> String {
+
+        "".to_string()
 
     }
 }
@@ -553,6 +599,36 @@ mod tests {
 
         assert_eq!(database.get_query(), "INSERT INTO casing (casing_id,name,type,max_psi) VALUES (6,'.30-06','Rimless, Straight bottleneck',25000)");
 
+    }
+    
+    #[test]
+    fn test_update() {
+
+        let mut database = Database::new("./loaddata.db");
+
+        database
+            .update()
+            .table("casing")
+            .condition("casing_id", SqlOp::NotEquals, SqlVal::Int(3));
+
+        fields!(database, "name", "type");
+
+        values!(database, SqlVal::Text(".30-06".to_string()), SqlVal::Text("Rimless, straight bottleneck".to_string()));
+
+        assert_eq!(database.get_query(), "UPDATE casing SET name='.30-06',type='Rimless, straight bottleneck' WHERE casing_id=3");
+    }
+
+    #[test]
+    fn test_delete() {
+
+        let mut database = Database::new("./loaddata.db");
+
+        database
+            .delete()
+            .table("casing")
+            .condition("casing_id", SqlOp::Equals, SqlVal::Int(2));
+
+        assert_eq!(database.get_query(), "DELETE FROM casing WHERE casing_id=2");
     }
 
     #[test]
