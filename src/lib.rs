@@ -52,11 +52,3 @@ pub struct Powder {
     pub manufacturer: String,
     pub powder_type: String,
 }
-
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-}
