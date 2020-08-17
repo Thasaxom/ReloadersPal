@@ -401,6 +401,11 @@ impl Query {
             // match the correct op and push the correct symbols
             match op {
                 SqlOp::Equals => built_query.push_str("="),
+                SqlOp::NotEquals => built_query.push_str("<>"),
+                SqlOp::GT => built_query.push_str(">"),
+                SqlOp::GTE => built_query.push_str(">="),
+                SqlOp::LT => built_query.push_str("<"),
+                SqlOp::LTE => built_query.push_str("<="),
                 _ => panic!("invalid or unimplemented operator for select condition"),
             }
 
@@ -472,6 +477,11 @@ pub enum SqlOp {
     Or,
     Not,
     Equals,
+    NotEquals,
+    GT,
+    LT,
+    GTE,
+    LTE,
 
 }
 
