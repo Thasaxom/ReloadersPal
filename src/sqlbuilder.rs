@@ -1,7 +1,6 @@
 use rusqlite::{Connection, Result, OpenFlags, params};
 use rusqlite::types::ToSql;
 use std::process;
-use reloaders_pal::{Casing, Projectile, Powder, Load, BallisticTest};
 
 #[macro_export]
 macro_rules! fields {
