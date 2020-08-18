@@ -9,14 +9,25 @@ use std::process;
 use sql::Database;
 
 fn main() {
-        
-    for args in env::args() {
+    
+    let args = env::args();
 
-        match args.as_str() {
+    for arg in args {
 
-            "-h" | "--help" => print_help(),
-            _ => "invalid option",
+        if arg.starts_with('-') {
+            match arg.as_str() {
 
+                "-h" | "--help" => print_help(),
+                _ => println!("invalid option {}", arg),
+
+            }
+        }
+        else {
+            match arg.as_str() {
+
+                _ => (),
+
+            }
         }
 
     }
@@ -28,6 +39,7 @@ fn print_help() {
     println!("usage: reloader [options] [command] [args]");
     println!("options");
     println!("-h | --help: see this menu");
+    process::exit(0);
 
 }
 
